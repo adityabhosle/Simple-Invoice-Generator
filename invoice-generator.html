@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Generator - Ramesh Bhosle</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 20px;
+        }
+
+        .form-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        .preview-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        /* A4 Paper Dimensions */
+        .a4-paper {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 0;
+            position: relative;
+        }
+
+        h2 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 600;
+            font-size: 12px;
+            color: #555;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: Arial, sans-serif;
+        }
+
+        textarea {
+            min-height: 60px;
+            resize: vertical;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            font-weight: 500;
+        }
+
+        .line-items {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #eee;
+        }
+
+        .line-item {
+            display: grid;
+            gap: 6px;
+            margin-bottom: 8px;
+            align-items: start;
+        }
+
+        .line-item.simple {
+            grid-template-columns: 1fr 90px 28px;
+        }
+
+        .line-item.detailed {
+            grid-template-columns: 1fr 70px 70px 80px 28px;
+        }
+
+        .line-item input {
+            padding: 5px 8px;
+            font-size: 12px;
+        }
+
+        .remove-btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 5px;
+            font-size: 14px;
+            height: 28px;
+        }
+
+        .add-item-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            width: 100%;
+            margin-top: 8px;
+            font-weight: 600;
+        }
+
+        .add-item-btn:hover {
+            background: #45a049;
+        }
+
+        .remove-btn:hover {
+            background: #cc0000;
+        }
+
+        .action-buttons {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 2px solid #eee;
+            display: grid;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0b7dda;
+        }
+
+        .btn-success {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #45a049;
+        }
+
+        .btn-email {
+            background: #FF9800;
+            color: white;
+        }
+
+        .btn-email:hover {
+            background: #F57C00;
+        }
+
+        .btn-secondary {
+            background: #666;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #555;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Invoice Styles - A4 Optimized */
+        .invoice {
+            width: 100%;
+            background: white;
+            padding: 10mm;
+            padding-top: 0;
+        }
+
+        .letterhead {
+            width: calc(100% + 20mm);
+            margin-left: -10mm;
+            margin-right: -10mm;
+            margin-bottom: 8mm;
+            padding: 5mm 2mm 3mm 2mm;
+            min-height: 30mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+        }
+
+        .letterhead img {
+            width: 100%;
+            height: auto;
+            display: block;
+            max-height: 40mm;
+            object-fit: contain;
+            object-position: center;
+        }
+
+        .letterhead.empty {
+            background: #f8f9fa;
+            color: #999;
+            font-size: 12pt;
+            text-align: center;
+            padding: 10mm;
+        }
+
+        .invoice-content {
+            margin-top: 8mm;
+        }
+
+        .invoice-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12mm;
+            margin-bottom: 10mm;
+        }
+
+        .meta-item {
+            font-size: 12pt;
+        }
+
+        .meta-label {
+            font-weight: 600;
+            margin-bottom: 2mm;
+            font-size: 12pt;
+        }
+
+        .client-info {
+            margin-bottom: 10mm;
+            font-size: 12pt;
+            line-height: 1.4;
+        }
+
+        .invoice-title {
+            text-align: center;
+            font-size: 18pt;
+            font-weight: bold;
+            margin: 10mm 0;
+            text-decoration: underline;
+            letter-spacing: 1px;
+        }
+
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 6mm;
+        }
+
+        .invoice-table th {
+            background: #f8f9fa;
+            padding: 3.5mm 4mm;
+            text-align: left;
+            border: 1px solid #333;
+            font-size: 12pt;
+        }
+
+        .invoice-table td {
+            padding: 3.5mm 4mm;
+            border: 1px solid #333;
+            font-size: 11pt;
+            line-height: 1.4;
+        }
+
+        .invoice-table .amount-cell {
+            text-align: right;
+        }
+
+        .invoice-table .total-row {
+            font-weight: bold;
+            background: #f8f9fa;
+            font-size: 12pt;
+        }
+
+        .payment-notes {
+            margin: 6mm 0;
+            padding: 4mm;
+            background: #fffef2;
+            border: 1px solid #e0dfc8;
+            border-radius: 2mm;
+        }
+
+        .payment-notes-title {
+            font-weight: 600;
+            margin-bottom: 2mm;
+            font-size: 12pt;
+        }
+
+        .payment-notes-content {
+            font-size: 11pt;
+            line-height: 1.6;
+            white-space: pre-line;
+        }
+
+        .total-words {
+            margin: 6mm 0;
+            font-size: 12pt;
+            font-weight: 600;
+        }
+
+        .invoice-footer {
+            margin-top: 12mm;
+            font-size: 12pt;
+        }
+
+        .upload-section {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 8px 16px;
+            background: #2196F3;
+            color: white;
+            text-align: center;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .file-input-label:hover {
+            background: #0b7dda;
+        }
+
+        .upload-preview {
+            margin-top: 8px;
+            padding: 8px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .upload-preview img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .upload-preview.active {
+            display: block;
+        }
+
+        .upload-status {
+            margin-top: 8px;
+            font-size: 11px;
+            color: #4CAF50;
+            display: none;
+        }
+
+        .upload-status.active {
+            display: block;
+        }
+
+        .column-toggle {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+
+        .save-status {
+            margin-top: 8px;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+        }
+
+        .save-status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .save-status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .save-status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+
+        /* Print Styles for A4 */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+                margin: 0;
+            }
+            
+            .container {
+                display: block;
+            }
+            
+            .form-panel,
+            .action-buttons {
+                display: none !important;
+            }
+            
+            .preview-panel {
+                box-shadow: none;
+                padding: 0;
+                margin: 0;
+            }
+
+            .a4-paper {
+                width: 210mm;
+                height: 297mm;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+                page-break-after: always;
+            }
+
+            .invoice {
+                padding: 10mm;
+                padding-top: 0;
+            }
+
+            .letterhead {
+                width: calc(100% + 20mm);
+                margin-left: -10mm;
+                margin-right: -10mm;
+                padding: 5mm 2mm 3mm 2mm;
+            }
+
+            .letterhead.empty {
+                display: none;
+            }
+
+            .invoice {
+                page-break-inside: avoid;
+            }
+        }
+
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        @media (max-width: 1100px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-panel {
+                position: static;
+                max-height: none;
+            }
+
+            .a4-paper {
+                width: 100%;
+                min-height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="form-panel">
+            <h2>Invoice Generator</h2>
+            
+            <div class="upload-section">
+                <label style="margin-bottom: 8px; display: block;">Letterhead Image</label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="letterheadUpload" accept="image/*" onchange="handleImageUpload(event)">
+                    <label for="letterheadUpload" class="file-input-label">
+                        <span id="uploadButtonText">Upload Image</span>
+                    </label>
+                </div>
+                <div class="upload-status" id="uploadStatus">
+                    ✓ Letterhead saved and will be reused
+                </div>
+                <div class="upload-preview" id="uploadPreview">
+                    <img id="previewImg" src="" alt="Letterhead preview">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Reference No.</label>
+                <input type="text" id="refNo" placeholder="Enter reference number">
+            </div>
+
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="date">
+            </div>
+
+            <div class="form-group">
+                <label>Client Name</label>
+                <textarea id="clientName" placeholder="Enter client name and address"></textarea>
+            </div>
+
+            <div class="column-toggle">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="useQuantitySize" onchange="toggleColumns()">
+                    <label for="useQuantitySize">Include Quantity & Size columns</label>
+                </div>
+            </div>
+
+            <div class="line-items">
+                <h2>Line Items</h2>
+                <div id="lineItemsContainer"></div>
+                <button class="add-item-btn" onclick="addLineItem()">+ Add Item</button>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #eee;">
+                <label>Payment Notes (optional)</label>
+                <textarea id="paymentNotes" placeholder="e.g., Amount Paid: ₹10,000&#10;Balance Due: ₹13,300"></textarea>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-email" id="emailBtn" onclick="sendEmail()">
+                    📧 Email Invoice
+                </button>
+                <button class="btn btn-success" id="downloadBtn" onclick="downloadPDF()">
+                    📥 Download PDF
+                </button>
+                <button class="btn btn-primary" onclick="window.print()">
+                    🖨️ Print Invoice
+                </button>
+                <button class="btn btn-secondary" onclick="resetForm()">
+                    🗑️ Clear Form
+                </button>
+            </div>
+
+            <div class="save-status" id="saveStatus"></div>
+        </div>
+
+        <div class="preview-panel">
+            <div class="a4-paper">
+                <div class="invoice" id="invoice">
+                    <div class="letterhead empty" id="letterheadDisplay">
+                        Upload your letterhead image
+                    </div>
+
+                    <div class="invoice-content">
+                        <div class="invoice-meta">
+                            <div class="meta-item">
+                                <div class="meta-label">Ref. No.:</div>
+                                <div id="displayRefNo">-</div>
+                            </div>
+                            <div class="meta-item">
+                                <div class="meta-label">Date:</div>
+                                <div id="displayDate">-</div>
+                            </div>
+                        </div>
+
+                        <div class="client-info">
+                            <div style="font-weight: 600; margin-bottom: 2mm;">To,</div>
+                            <div id="displayClient" style="white-space: pre-line;">-</div>
+                        </div>
+
+                        <div class="invoice-title">INVOICE</div>
+
+                        <table class="invoice-table" id="invoiceTable">
+                            <thead id="tableHead">
+                                <tr>
+                                    <th style="width: 70%">Description</th>
+                                    <th style="width: 30%">Amount (INR)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoiceTableBody">
+                                <tr>
+                                    <td colspan="4" style="text-align: center; padding: 10mm; color: #999;">
+                                        Add items using the form on the left
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="payment-notes" id="paymentNotesDisplay" style="display: none;">
+                            <div class="payment-notes-title">Payment Notes:</div>
+                            <div class="payment-notes-content" id="paymentNotesContent"></div>
+                        </div>
+
+                        <div class="total-words" id="totalWords"></div>
+
+                        <div class="invoice-footer">
+                            Thank you!
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let lineItems = [];
+        let itemCounter = 0;
+        let useDetailedColumns = false;
+        let letterheadImage = null;
+
+        // Initialize EmailJS
+        (function() {
+            emailjs.init("YOUR_EMAILJS_USER_ID"); // You'll need to replace this
+        })();
+
+        document.getElementById('date').valueAsDate = new Date();
+        addLineItem();
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    letterheadImage = e.target.result;
+                    
+                    document.getElementById('uploadPreview').classList.add('active');
+                    document.getElementById('previewImg').src = letterheadImage;
+                    document.getElementById('uploadStatus').classList.add('active');
+                    document.getElementById('uploadButtonText').textContent = 'Change Image';
+                    
+                    const letterheadDisplay = document.getElementById('letterheadDisplay');
+                    letterheadDisplay.classList.remove('empty');
+                    letterheadDisplay.innerHTML = `<img src="${letterheadImage}" alt="Letterhead">`;
+                    
+                    localStorage.setItem('invoiceLetterhead', letterheadImage);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', function() {
+            const savedLetterhead = localStorage.getItem('invoiceLetterhead');
+            if (savedLetterhead) {
+                letterheadImage = savedLetterhead;
+                document.getElementById('uploadPreview').classList.add('active');
+                document.getElementById('previewImg').src = letterheadImage;
+                document.getElementById('uploadStatus').classList.add('active');
+                document.getElementById('uploadButtonText').textContent = 'Change Image';
+                
+                const letterheadDisplay = document.getElementById('letterheadDisplay');
+                letterheadDisplay.classList.remove('empty');
+                letterheadDisplay.innerHTML = `<img src="${letterheadImage}" alt="Letterhead">`;
+            }
+        });
+
+        function toggleColumns() {
+            useDetailedColumns = document.getElementById('useQuantitySize').checked;
+            renderLineItems();
+            updateInvoice();
+        }
+
+        function addLineItem() {
+            const id = itemCounter++;
+            lineItems.push({ 
+                id, 
+                description: '', 
+                quantity: '', 
+                size: '', 
+                amount: '' 
+            });
+            renderLineItems();
+        }
+
+        function removeLineItem(id) {
+            lineItems = lineItems.filter(item => item.id !== id);
+            renderLineItems();
+            updateInvoice();
+        }
+
+        function renderLineItems() {
+            const container = document.getElementById('lineItemsContainer');
+            
+            if (useDetailedColumns) {
+                container.innerHTML = lineItems.map(item => `
+                    <div class="line-item detailed">
+                        <input 
+                            type="text" 
+                            placeholder="Description" 
+                            value="${item.description}"
+                            oninput="updateLineItem(${item.id}, 'description', this.value)"
+                        >
+                        <input 
+                            type="text" 
+                            placeholder="Qty" 
+                            value="${item.quantity}"
+                            oninput="updateLineItem(${item.id}, 'quantity', this.value)"
+                        >
+                        <input 
+                            type="text" 
+                            placeholder="Size" 
+                            value="${item.size}"
+                            oninput="updateLineItem(${item.id}, 'size', this.value)"
+                        >
+                        <input 
+                            type="number" 
+                            placeholder="Amount" 
+                            value="${item.amount}"
+                            oninput="updateLineItem(${item.id}, 'amount', this.value)"
+                            min="0"
+                            step="0.01"
+                        >
+                        <button class="remove-btn" onclick="removeLineItem(${item.id})">×</button>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = lineItems.map(item => `
+                    <div class="line-item simple">
+                        <input 
+                            type="text" 
+                            placeholder="Description" 
+                            value="${item.description}"
+                            oninput="updateLineItem(${item.id}, 'description', this.value)"
+                        >
+                        <input 
+                            type="number" 
+                            placeholder="Amount" 
+                            value="${item.amount}"
+                            oninput="updateLineItem(${item.id}, 'amount', this.value)"
+                            min="0"
+                            step="0.01"
+                        >
+                        <button class="remove-btn" onclick="removeLineItem(${item.id})">×</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function updateLineItem(id, field, value) {
+            const item = lineItems.find(item => item.id === id);
+            if (item) {
+                item[field] = value;
+                updateInvoice();
+            }
+        }
+
+        function numberToWords(num) {
+            if (num === 0) return 'Zero';
+            
+            const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+            const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+            const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+            
+            function convertLessThanThousand(n) {
+                if (n === 0) return '';
+                if (n < 10) return ones[n];
+                if (n < 20) return teens[n - 10];
+                if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
+                return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + convertLessThanThousand(n % 100) : '');
+            }
+            
+            if (num < 1000) return convertLessThanThousand(num);
+            if (num < 100000) {
+                const thousands = Math.floor(num / 1000);
+                const remainder = num % 1000;
+                return convertLessThanThousand(thousands) + ' Thousand' + (remainder !== 0 ? ' ' + convertLessThanThousand(remainder) : '');
+            }
+            if (num < 10000000) {
+                const lakhs = Math.floor(num / 100000);
+                const remainder = num % 100000;
+                return convertLessThanThousand(lakhs) + ' Lakh' + (remainder !== 0 ? ' ' + numberToWords(remainder) : '');
+            }
+            
+            const crores = Math.floor(num / 10000000);
+            const remainder = num % 10000000;
+            return convertLessThanThousand(crores) + ' Crore' + (remainder !== 0 ? ' ' + numberToWords(remainder) : '');
+        }
+
+        function updateInvoice() {
+            document.getElementById('displayRefNo').textContent = document.getElementById('refNo').value || '-';
+            document.getElementById('displayDate').textContent = document.getElementById('date').value || '-';
+            document.getElementById('displayClient').textContent = document.getElementById('clientName').value || '-';
+
+            const paymentNotes = document.getElementById('paymentNotes').value.trim();
+            if (paymentNotes) {
+                document.getElementById('paymentNotesDisplay').style.display = 'block';
+                document.getElementById('paymentNotesContent').textContent = paymentNotes;
+            } else {
+                document.getElementById('paymentNotesDisplay').style.display = 'none';
+            }
+
+            const tableHead = document.getElementById('tableHead');
+            if (useDetailedColumns) {
+                tableHead.innerHTML = `
+                    <tr>
+                        <th style="width: 40%">Description</th>
+                        <th style="width: 15%">Quantity</th>
+                        <th style="width: 20%">Size</th>
+                        <th style="width: 25%">Amount (INR)</th>
+                    </tr>
+                `;
+            } else {
+                tableHead.innerHTML = `
+                    <tr>
+                        <th style="width: 70%">Description</th>
+                        <th style="width: 30%">Amount (INR)</th>
+                    </tr>
+                `;
+            }
+
+            const tbody = document.getElementById('invoiceTableBody');
+            const validItems = lineItems.filter(item => item.description.trim() !== '');
+            
+            if (validItems.length === 0) {
+                const colspan = useDetailedColumns ? 4 : 2;
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="${colspan}" style="text-align: center; padding: 10mm; color: #999;">
+                            Add items using the form on the left
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('totalWords').textContent = '';
+                return;
+            }
+
+            let total = 0;
+            let rows = validItems.map(item => {
+                const amount = parseFloat(item.amount) || 0;
+                total += amount;
+                
+                if (useDetailedColumns) {
+                    return `
+                        <tr>
+                            <td>${item.description}</td>
+                            <td>${item.quantity}</td>
+                            <td>${item.size}</td>
+                            <td class="amount-cell">${amount > 0 ? amount.toLocaleString('en-IN') : ''}</td>
+                        </tr>
+                    `;
+                } else {
+                    return `
+                        <tr>
+                            <td>${item.description}</td>
+                            <td class="amount-cell">${amount > 0 ? amount.toLocaleString('en-IN') : ''}</td>
+                        </tr>
+                    `;
+                }
+            }).join('');
+
+            if (useDetailedColumns) {
+                rows += `
+                    <tr class="total-row">
+                        <td colspan="3">TOTAL</td>
+                        <td class="amount-cell">${total.toLocaleString('en-IN')}</td>
+                    </tr>
+                `;
+            } else {
+                rows += `
+                    <tr class="total-row">
+                        <td>TOTAL</td>
+                        <td class="amount-cell">${total.toLocaleString('en-IN')}</td>
+                    </tr>
+                `;
+            }
+
+            tbody.innerHTML = rows;
+
+            if (total > 0) {
+                const words = numberToWords(Math.floor(total));
+                document.getElementById('totalWords').textContent = `Total - Rupees ${words} only.`;
+            } else {
+                document.getElementById('totalWords').textContent = '';
+            }
+        }
+
+        async function downloadPDF() {
+            const refNo = document.getElementById('refNo').value || 'invoice';
+            const date = document.getElementById('date').value || new Date().toISOString().split('T')[0];
+            const filename = `Invoice_${refNo}_${date}.pdf`;
+
+            const statusDiv = document.getElementById('saveStatus');
+            statusDiv.className = 'save-status info';
+            statusDiv.textContent = '⏳ Generating PDF...';
+
+            const downloadBtn = document.getElementById('downloadBtn');
+            downloadBtn.disabled = true;
+
+            try {
+                const element = document.getElementById('invoice');
+                const opt = {
+                    margin: 0,
+                    filename: filename,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { 
+                        scale: 2,
+                        useCORS: true,
+                        letterRendering: true
+                    },
+                    jsPDF: { 
+                        unit: 'mm', 
+                        format: 'a4', 
+                        orientation: 'portrait' 
+                    }
+                };
+
+                await html2pdf().set(opt).from(element).save();
+
+                statusDiv.className = 'save-status success';
+                statusDiv.textContent = `✓ PDF downloaded: ${filename}`;
+                
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 5000);
+
+            } catch (error) {
+                console.error('PDF generation error:', error);
+                statusDiv.className = 'save-status error';
+                statusDiv.textContent = '✗ Error generating PDF. Please try using Print > Save as PDF instead.';
+            } finally {
+                downloadBtn.disabled = false;
+            }
+        }
+
+        async function sendEmail() {
+            const clientName = document.getElementById('clientName').value.split('\n')[0] || 'Client';
+            const refNo = document.getElementById('refNo').value || 'N/A';
+            const date = document.getElementById('date').value || new Date().toISOString().split('T')[0];
+            
+            const subject = `Bhosle Technicians - Invoice - ${clientName} - ${date}`;
+
+            const statusDiv = document.getElementById('saveStatus');
+            statusDiv.className = 'save-status info';
+            statusDiv.textContent = '⏳ Generating PDF and sending email...';
+
+            const emailBtn = document.getElementById('emailBtn');
+            emailBtn.disabled = true;
+
+            try {
+                // Generate PDF as base64
+                const element = document.getElementById('invoice');
+                const opt = {
+                    margin: 0,
+                    filename: `Invoice_${refNo}_${date}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { 
+                        scale: 2,
+                        useCORS: true,
+                        letterRendering: true
+                    },
+                    jsPDF: { 
+                        unit: 'mm', 
+                        format: 'a4', 
+                        orientation: 'portrait' 
+                    }
+                };
+
+                const pdf = await html2pdf().set(opt).from(element).output('blob');
+                
+                // Convert blob to base64
+                const reader = new FileReader();
+                reader.readAsDataURL(pdf);
+                
+                reader.onloadend = async function() {
+                    const base64data = reader.result.split(',')[1];
+                    
+                    // Send email via EmailJS
+                    try {
+                        await emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", {
+                            to_email: "adityabhsl83@gmail.com",
+                            subject: subject,
+                            client_name: clientName,
+                            ref_no: refNo,
+                            date: date,
+                            attachment: base64data,
+                            filename: `Invoice_${refNo}_${date}.pdf`
+                        });
+
+                        statusDiv.className = 'save-status success';
+                        statusDiv.textContent = `✓ Invoice emailed successfully to adityabhsl83@gmail.com!`;
+                        
+                        setTimeout(() => {
+                            statusDiv.style.display = 'none';
+                        }, 5000);
+
+                    } catch (emailError) {
+                        throw emailError;
+                    }
+                };
+
+            } catch (error) {
+                console.error('Email sending error:', error);
+                statusDiv.className = 'save-status error';
+                statusDiv.textContent = '✗ Error sending email. Please check the setup guide below.';
+            } finally {
+                emailBtn.disabled = false;
+            }
+        }
+
+        function resetForm() {
+            if (confirm('Are you sure you want to clear all fields? (Your letterhead will be preserved)')) {
+                document.getElementById('refNo').value = '';
+                document.getElementById('date').valueAsDate = new Date();
+                document.getElementById('clientName').value = '';
+                document.getElementById('paymentNotes').value = '';
+                document.getElementById('useQuantitySize').checked = false;
+                useDetailedColumns = false;
+                lineItems = [];
+                itemCounter = 0;
+                addLineItem();
+                updateInvoice();
+                document.getElementById('saveStatus').style.display = 'none';
+            }
+        }
+
+        document.getElementById('refNo').addEventListener('input', updateInvoice);
+        document.getElementById('date').addEventListener('input', updateInvoice);
+        document.getElementById('clientName').addEventListener('input', updateInvoice);
+        document.getElementById('paymentNotes').addEventListener('input', updateInvoice);
+
+        updateInvoice();
+    </script>
+</body>
+</html>
